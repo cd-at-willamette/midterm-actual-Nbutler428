@@ -1,6 +1,6 @@
 ---
 title: "Characterizing Automobiles"
-author: "Your Name Here"
+author: "Nathan Butler"
 date: "03/17/2025"
 
 format: 
@@ -33,6 +33,7 @@ sh(library(ISLR)) # for the "Auto" dataframe
 - We use the `Auto` dataframe.
 
 ```{r df}
+data("Auto", package = "ISLR")
 head(Auto)
 ```
 
@@ -48,10 +49,12 @@ names(Auto)
 - Compute and comment on the RMSE.
 
 ```{r regression}
-# Your code here
+pacman::p_load(moderndive)
+m1 <- lm(mpg ~ horsepower +year,Auto)
+get_regression_summaries(m1)
 ```
 
-> <span style="color:red;font-weight:bold">TODO</span>: *Explain*
+> <span style="color:red;font-weight:bold">TODO</span>: *The RMSE for my model is 3.074, which means that the models predictions of miles per gallon deviate on average by approximately 3.074 units from the actual mpg values. This suggests a moderate level of error.*
 
 # Feature Engineering
 
@@ -61,10 +64,29 @@ names(Auto)
 - Compute and comment on the RMSE.
 
 ```{r features}
-# Your code here
+Auto$name<-as.character(Auto$name)
+Auto_2 <- Auto %>% 
+  mutate(
+    car_manufacturer = word(name, 1), 
+    name_length = nchar(name),
+    sport = as.integer(str_detect(tolower(name), "sport")), #I used to really be into cars for like 6 months and so I just made lists of words I remember coming after car names
+    luxury = as.integer(str_detect(tolower(name), "luxury")),
+    gt = as.integer(str_detect(tolower(name), "gt")),
+    custom = as.integer(str_detect(tolower(name), "custom")),
+    special = as.integer(str_detect(tolower(name), "special")),
+    deluxe = as.integer(str_detect(tolower(name), "deluxe")),
+    has_number = as.integer(str_detect(name, "\\d")),
+    super = as.integer(str_detect(tolower(name), "super"))) %>% 
+  select(mpg, car_manufacturer, name_length, sport,luxury, gt, custom, special,deluxe,has_number,super) %>%
+  na.omit()
+```
+```{r}
+m2 <- lm(mpg ~ .,Auto_2)
+get_regression_summaries(m2)
 ```
 
-> <span style="color:red;font-weight:bold">TODO</span>: *Explain*
+
+> <span style="color:red;font-weight:bold">TODO</span>: *The Root Mean Squared Error we got of roughly 5.82 means that, on average, our models predicted mpg differs from the actual mpg in the dataset by approximately 5.82 miles per gallon.*
 
 # Classification
 
@@ -73,10 +95,36 @@ names(Auto)
 - Report on your Kappa value.
 
 ```{r classification}
-# Your code here
+Auto_3 <- Auto_2 %>% 
+  mutate(chevy_honda = ifelse(car_manufacturer %in% c("chevrolet", "honda"), car_manufacturer, NA)) %>% #I couldnt quite tell if you wanted us to do just between chevrolet and Hondas or chevrolet or honda from all of the others. I did the first one.
+  select(-car_manufacturer) %>% 
+  na.omit()
+
+Auto_3$chevy_honda <- as.factor(Auto_3$chevy_honda)
 ```
 
-> <span style="color:red;font-weight:bold">TODO</span>: *Explain*
+```{r}
+set.seed(505)
+split <- createDataPartition(Auto_3$chevy_honda, p = 0.8, list = FALSE)
+train <- Auto_3[split, ]
+test <- Auto_3[-split, ]
+fit <- train(chevy_honda ~ .,
+             data = train, 
+             method = "knn",
+             tuneLength = 15,
+             metric = "Kappa",
+             trControl = trainControl(method = "cv", number = 5))
+confusionMatrix(predict(fit, test),factor(test$chevy_honda))$overall['Kappa']
+```
+
+```{r}
+sort(table(Auto_3$chevy_honda))
+```
+
+
+
+
+> <span style="color:red;font-weight:bold">TODO</span>: *The Kappa statistic of 0.615 demonstrates that our KNN model is performing slightly better than chance. Which I believe to be only because of how I have set up the data. If we look at how I set up the chevy_honda column for classification it only has Chevy and Honda in it. There are 43 cars that are made by Chevrolet and only 13 made by honda. Meaning are model has a pretty good chance of saying Chevrolet and being correct even if it was only luck. I originally went with Naive Bayes instead of KNN because I thought it would handle the class imbalance better by incorporating prior probabilities into its predictions. Since Naive Bayes explicitly considers the probability of each class occurring, I expected it to account for the fact that Chevrolet appears more frequently than Honda. However, my results showed that Naive Bayes performed worse than KNN, which suggests that the independence assumption of Naive Bayes may not hold in this dataset. *
 
 # Binary Classification
 
@@ -85,34 +133,81 @@ names(Auto)
 - Display and comment on an ROC curve.
 
 ```{r binary classification}
-# Your code here
+
+Auto_4 <- Auto_2 %>% mutate(is_honda = as.integer(car_manufacturer == "honda")) %>% select(-car_manufacturer)
+
+set.seed(505)
+split <- createDataPartition(Auto_4$is_honda, p = 0.8, list = FALSE)
+train <- Auto_4[split, ]
+test <- Auto_4[-split, ]
+```
+```{r}
+model <- glm(is_honda ~ ., data = train, family = binomial, weights = rep(1, nrow(train)))
+```
+```{r}
+probabilities <- predict(model, test, type = "response")
+```
+```{r}
+pacman::p_load(pROC)
+roc_curve <- roc(test$is_honda, probabilities)
+```
+```{r}
+plot(roc_curve, main="ROC Curve for Honda Classification", col="blue", lwd=2)
+auc_value <- auc(roc_curve)
+auc_value
 ```
 
-> <span style="color:red;font-weight:bold">TODO</span>: *Explain*
+
+> <span style="color:red;font-weight:bold">TODO</span>: *The Area Under the Curve ended up with a value of 0.915, which indicates a strong classification performance. The model is surprisingly able to differentiates between Honda and cars that aren't honda, as the AUC is close to 1. Now I should add that an AUC of 0.915 is a strong score, indicating that the model is highly effective at distinguishing between hondas and when there isnt hondas. Given that an AUC of 1 represents a perfect classifier, our model performs well, but it also raises the question of whether it is overfitting to the training data.*
 
 # Ethics
 
 - Based on your analysis, comment on the [Clean Air Act of 1970 and Ammendments of 1977](https://www.epa.gov/clean-air-act-overview/evolution-clean-air-act)
 - Discuss the civic reposibilities of data scientists for:
-    - Big Data and Human-Centered Computing
+    - Big Data and Human-Centered Computing   
     - Democratic Institutions
     - Climate Change
 - Provide at least one statistical measure for each, such as a RMSE, Kappa value, or ROC curve.
 
-> <span style="color:red;font-weight:bold">TODO</span>: Big Data and Human-Centered Computing
+> <span style="color:red;font-weight:bold">TODO</span>: Big Data and Human-Centered Computing *Big Data and human-centered computing have significant ethical implications. Data scientists must balance the potential benefits of large-scale data collection with concerns regarding privacy, bias, and fairness. The use of predictive analytics in areas such as healthcare, social services, and environmental monitoring should prioritize transparency and accountability. One important statistical measure in this context is the Kappa statistic, which helps evaluate the reliability of classification models in ensuring fair and unbiased predictions across diverse populations.*
 
 ```{r big data}
-# Your code here
+set.seed(505)
+Auto_5 <- Auto %>%
+  mutate(
+    origin = as.factor(origin),
+    horsepower = as.numeric(as.character(horsepower))) %>% 
+  select(-name) %>%  na.omit() 
+split <- createDataPartition(Auto_5$origin, p = 0.8, list = FALSE)
+train <- Auto_5[split, ]
+test <- Auto_5[-split, ]
+fit <- train(origin ~ .,
+             data = train, 
+             method = "knn",
+             tuneLength = 15,
+             metric = "Kappa",
+             trControl = trainControl(method = "cv", number = 5))
+confusionMatrix(predict(fit, test),factor(test$origin))$overall['Kappa']
 ```
 
-> <span style="color:red;font-weight:bold">TODO</span>: Democratic Institutions
+> <span style="color:red;font-weight:bold">TODO</span>: Democratic Institutions *Data science plays a crucial role in strengthening democratic institutions by promoting transparency, reducing misinformation, and improving electoral processes. Ethical considerations include mitigating algorithmic bias, and enhancing accessibility to civic resources. For instance, ROC curves are commonly used inclassification models to assess the trade off between true positive and false positive rate.*
 
 ```{r democracy}
-# Your code here
+Auto_5$high_mpg <- as.factor(ifelse(Auto_5$mpg > median(Auto_5$mpg), 1, 0))
+model <- glm(high_mpg ~ horsepower + weight, data = Auto_5, family = binomial)
+predictions <- predict(model, Auto_5, type = "response")
+
+roc_curve <- roc(Auto_5$high_mpg, predictions)
+plot(roc_curve, main = "ROC Curve for High MPG Prediction")
 ```
 
-> <span style="color:red;font-weight:bold">TODO</span>: Climate Change
+> <span style="color:red;font-weight:bold">TODO</span>: Climate Change *In addressing climate change, data scientists must ensure that models used for climate predictions are both accurate and ethically applied. The use of remote sensing data, climate simulations, and statistical forecasting can help policymakers develop strategies to reduce carbon emissions and mitigate environmental risks. A commonly used metric in climate modeling is the Root Mean Squared Error which quantifies the accuracy of predictive models in forecasting temperature changes, sea level rise, and other environmental factors.*
 
 ```{r climate}
-# Your code here
+
+model <- lm(mpg ~ weight + horsepower, data = Auto_5)
+predictions <- predict(model, Auto_5)
+
+rmse <- sqrt(mean((Auto_5$mpg - predictions)^2))
+rmse
 ```
