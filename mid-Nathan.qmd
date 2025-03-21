@@ -169,7 +169,7 @@ auc_value
     - Climate Change
 - Provide at least one statistical measure for each, such as a RMSE, Kappa value, or ROC curve.
 
-> <span style="color:red;font-weight:bold">TODO</span>: Big Data and Human-Centered Computing *Big Data and human-centered computing have significant ethical implications. Data scientists must balance the potential benefits of large-scale data collection with concerns regarding privacy, bias, and fairness. The use of predictive analytics in areas such as healthcare, social services, and environmental monitoring should prioritize transparency and accountability. One important statistical measure in this context is the Kappa statistic, which helps evaluate the reliability of classification models in ensuring fair and unbiased predictions across diverse populations.*
+> <span style="color:red;font-weight:bold">TODO</span>: Big Data and Human-Centered Computing *Data scientists must balance the potential benefits of large-scale data collection with concerns regarding privacy, bias, and fairness. The use of predictive analytics in areas such as healthcare, social services, and environmental monitoring should prioritize transparency and accountability. One important statistical measure in this context is the Kappa statistic, which helps evaluate the reliability of classification models in ensuring fair and unbiased predictions across diverse populations.*
 
 ```{r big data}
 set.seed(505)
